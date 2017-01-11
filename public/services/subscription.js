@@ -8,5 +8,4 @@ angular.module('MyApp')
         return $http.post('/api/unsubscribe', { showId: show._id });
       }
     }
-
   }])

@@ -1,28 +1,29 @@
 angular.module('MyApp')
   .controller('DetailCtrl', ['$scope', '$rootScope', '$routeParams', 'Show', 'Subscription',
-    function($scope, $rootScope, $routeParams, Show, Subscription){
-      Show.query({ _id: $routeParams.id  }, function (show){
-        $scope.show = show[0];
+    function($scope, $rootScope, $routeParams, Show, Subscription) {
+      Show.get({ _id: $routeParams.id }, function(show) {
+        console.log(show);
+        $scope.show = show;
 
-
-        $scope.isSubscribed = function(){
+        $scope.isSubscribed = function() {
           return $scope.show.subscribers.indexOf($rootScope.currentUser._id) !== -1;
         };
 
-        $scope.subscribe = function(){
-          Subscription.subscribe(show).then(function(){
+        $scope.subscribe = function() {
+          Subscription.subscribe(show).then(function() {
             $scope.show.subscribers.push($rootScope.currentUser._id);
-          })
-        }
+          });
+        };
 
-        $scope.unsubscribe = function(){
-          Subscription.unsubscribe(show).then(function(){
+        $scope.unsubscribe = function() {
+          Subscription.unsubscribe(show).then(function() {
             var index = $scope.show.subscribers.indexOf($rootScope.currentUser._id);
             $scope.show.subscribers.splice(index, 1);
-          })
-        }
-        $scope.nextEpisode = show[0].episodes.filter(function(episode){
+          });
+        };
+
+        $scope.nextEpisode = show.episodes.filter(function(episode) {
           return new Date(episode.firstAired) > new Date();
         })[0];
-      })
-    }])
+      });
+    }]);

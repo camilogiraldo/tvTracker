@@ -8,11 +8,58 @@ const bcrypt = require('bcryptjs');
 const async = require('async');
 const request = require('request');
 const xml2js = require('xml2js');
-var _ = require('lodash');
+const _ = require('lodash');
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
+const agenda = require('agenda')({ db: { address: 'mongodb://heroku_10x86tq7:n5ictskueacnqrdot75n3bei71@ds163738.mlab.com:63738/heroku_10x86tq7' } });
+const sugar = require('sugar');
+const nodemailer = require('nodemailer');
+const compress = require('compression');
 
+agenda.define('send email alert', function(job, done){
+  Show.findOne({ name: job.attrs.data }).populate('subscribers').exec(function(err, show){
+    var emails = show.subscribers.map(function(user){
+      return user.email;
+    });
+
+    var upcomingEpisode = show.episodes.filter(function(episode){
+      return new Date(episode.firstAired) > Date();
+    })[0];
+
+    var smtpTransport = nodemailer.createTransport('SMTP', {
+      service: 'SendGrid',
+      auth: { user: 'hslogin', pass: 'hspassword00'}
+    });
+
+    var mailOptions = {
+      from: 'Camilo Giraldo ✔ <camilogiraldo91@gmail.com>',
+      to: emails.join(','),
+      subject: show.name + ' is starting soon!',
+      text: show.name + ' starts in less than 2 hours on ' + show.network + '.\n\n' +
+      'Episode ' + upcomingEpisode.episodeNumber + 'Overview\n\n' + upcomingEpisode.overview
+    };
+
+    smtpTransport.sendMail(mailOptions, function(error, response){
+      console.log('Message sent: ' + response.message);
+      smtpTransport.close();
+      done();
+    })
+  })
+})
+
+
+
+agenda.on('ready', function(){
+  agenda.start()
+})
+agenda.on('start', function(job){
+  console.log("Job %s starting", job.attrs.name);
+});
+
+agenda.on('complete', function(job){
+  console.log("Job %s finished", job.attrs.name);
+})
 
 passport.serializeUser(function(user, done) {
     done(null, user.id);
@@ -95,10 +142,11 @@ userSchema.methods.comparePassword = function(candidatePassword, cb) {
 
 var User = mongoose.model('User', userSchema);
 var Show = mongoose.model('Show', showSchema);
-mongoose.connect('localhost');
+mongoose.connect('mongodb://heroku_10x86tq7:n5ictskueacnqrdot75n3bei71@ds163738.mlab.com:63738/heroku_10x86tq7');
 var app = express();
 
 app.set('port', process.env.PORT || 3000);
+app.use(compress())
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
@@ -108,7 +156,7 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 86400000}));
 app.use(function(req, res, next) {
     if (req.user) {
         res.cookie('user', JSON.stringify(req.user));
@@ -282,6 +330,9 @@ app.post('/api/shows', function(req, res, next) {
                 return next(err);
 
             }
+
+            var alertDate = Date.create('Next ' + show.airsDayOfWeek + ' at' + show.airsTime).rewind({ hour: 2 });
+            agenda.schedule(alertDate, 'send email alert', show.name).repeatEvery('1 week');
             res.send(200);
         })
     })

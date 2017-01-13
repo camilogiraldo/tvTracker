@@ -7,5 +7,5 @@ angular.module('MyApp')
       unsubscribe: function(show, user){
         return $http.post('/api/unsubscribe', { showId: show._id });
       }
-    }
+  }
   }])

@@ -1,8 +1,9 @@
 angular.module('MyApp')
   .controller('DetailCtrl', ['$scope', '$rootScope', '$routeParams', 'Show', 'Subscription',
     function($scope, $rootScope, $routeParams, Show, Subscription){
-      Show.get({ _id: $routeParams.id  }, function (show){
-        $scope.show = show;
+      Show.query({ _id: $routeParams.id  }, function (show){
+        $scope.show = show[0];
+
 
         $scope.isSubscribed = function(){
           return $scope.show.subscribers.indexOf($rootScope.currentUser._id) !== -1;
@@ -20,7 +21,7 @@ angular.module('MyApp')
             $scope.show.subscribers.splice(index, 1);
           })
         }
-        $scope.nextEpisode = show.episodes.filter(function(episode){
+        $scope.nextEpisode = show[0].episodes.filter(function(episode){
           return new Date(episode.firstAired) > new Date();
         })[0];
       })
